@@ -1,4 +1,4 @@
-"""Example workflow pipeline script for abalone pipeline.
+"""Workflow pipeline script for churn prediction pipeline.
 
                                                . -ModelStep
                                               .
@@ -26,7 +26,7 @@ from sagemaker.processing import (
     ScriptProcessor,
 )
 from sagemaker.sklearn.processing import SKLearnProcessor
-from sagemaker.workflow.conditions import ConditionLessThanOrEqualTo
+from sagemaker.workflow.conditions import ConditionGreaterThanOrEqualTo
 from sagemaker.workflow.condition_step import (
     ConditionStep,
 )
@@ -50,19 +50,20 @@ from sagemaker.workflow.pipeline_context import PipelineSession
 
 BASE_DIR = os.path.dirname(os.path.realpath(__file__))
 
+
 def get_sagemaker_client(region):
-     """Gets the sagemaker client.
+    """Gets the sagemaker client.
 
-        Args:
-            region: the aws region to start the session
-            default_bucket: the bucket to use for storing the artifacts
+    Args:
+        region: the aws region to start the session
+        default_bucket: the bucket to use for storing the artifacts
 
-        Returns:
-            `sagemaker.session.Session instance
-        """
-     boto_session = boto3.Session(region_name=region)
-     sagemaker_client = boto_session.client("sagemaker")
-     return sagemaker_client
+    Returns:
+        `sagemaker.session.Session instance
+    """
+    boto_session = boto3.Session(region_name=region)
+    sagemaker_client = boto_session.client("sagemaker")
+    return sagemaker_client
 
 
 def get_session(region, default_bucket):
@@ -87,6 +88,7 @@ def get_session(region, default_bucket):
         default_bucket=default_bucket,
     )
 
+
 def get_pipeline_session(region, default_bucket):
     """Gets the pipeline session based on the region.
 
@@ -106,6 +108,7 @@ def get_pipeline_session(region, default_bucket):
         sagemaker_client=sagemaker_client,
         default_bucket=default_bucket,
     )
+
 
 def get_pipeline_custom_tags(new_tags, region, sagemaker_project_name=None):
     try:
@@ -127,13 +130,13 @@ def get_pipeline(
     sagemaker_project_name=None,
     role=None,
     default_bucket=None,
-    model_package_group_name="AbalonePackageGroup",
-    pipeline_name="AbalonePipeline",
-    base_job_prefix="Abalone",
-    processing_instance_type="ml.m5.xlarge",
-    training_instance_type="ml.m5.xlarge",
+    model_package_group_name="ChurnPredictionPackageGroup",
+    pipeline_name="ChurnPredictionPipeline",
+    base_job_prefix="ChurnPrediction",
+    processing_instance_type="ml.t3.medium",
+    training_instance_type="ml.t3.medium",
 ):
-    """Gets a SageMaker ML Pipeline instance working with on abalone data.
+    """Gets a SageMaker ML Pipeline instance working on churn prediction data.
 
     Args:
         region: AWS region to create and run the pipeline.
@@ -150,13 +153,15 @@ def get_pipeline(
     pipeline_session = get_pipeline_session(region, default_bucket)
 
     # parameters for pipeline execution
-    processing_instance_count = ParameterInteger(name="ProcessingInstanceCount", default_value=1)
+    processing_instance_count = ParameterInteger(
+        name="ProcessingInstanceCount", default_value=1)
+
     model_approval_status = ParameterString(
         name="ModelApprovalStatus", default_value="PendingManualApproval"
     )
     input_data = ParameterString(
         name="InputDataUrl",
-        default_value=f"s3://sagemaker-servicecatalog-seedcode-{region}/dataset/abalone-dataset.csv",
+        default_value="s3://sagemaker-project-p-yapqplufpbzj/churn-prediction-mlops-p-yapqplufpbzj/data/ecommerce_customer_churn_dataset.csv"
     )
 
     # processing step for feature engineering
@@ -164,7 +169,7 @@ def get_pipeline(
         framework_version="0.23-1",
         instance_type=processing_instance_type,
         instance_count=processing_instance_count,
-        base_job_name=f"{base_job_prefix}/sklearn-abalone-preprocess",
+        base_job_name=f"{base_job_prefix}/sklearn-churn-prediction-preprocess",
         sagemaker_session=pipeline_session,
         role=role,
     )
@@ -178,12 +183,12 @@ def get_pipeline(
         arguments=["--input-data", input_data],
     )
     step_process = ProcessingStep(
-        name="PreprocessAbaloneData",
+        name="PreprocessChurnPredictionData",
         step_args=step_args,
     )
 
     # training step for generating model artifacts
-    model_path = f"s3://{sagemaker_session.default_bucket()}/{base_job_prefix}/AbaloneTrain"
+    model_path = f"s3://{sagemaker_session.default_bucket()}/{base_job_prefix}/ChurnPredictionTrain"
     image_uri = sagemaker.image_uris.retrieve(
         framework="xgboost",
         region=region,
@@ -196,12 +201,12 @@ def get_pipeline(
         instance_type=training_instance_type,
         instance_count=1,
         output_path=model_path,
-        base_job_name=f"{base_job_prefix}/abalone-train",
+        base_job_name=f"{base_job_prefix}/churn-prediction-train",
         sagemaker_session=pipeline_session,
         role=role,
     )
     xgb_train.set_hyperparameters(
-        objective="reg:linear",
+        objective="binary:hinge",
         num_round=50,
         max_depth=5,
         eta=0.2,
@@ -227,7 +232,7 @@ def get_pipeline(
         },
     )
     step_train = TrainingStep(
-        name="TrainAbaloneModel",
+        name="TrainChurnPredictionModel",
         step_args=step_args,
     )
 
@@ -237,7 +242,7 @@ def get_pipeline(
         command=["python3"],
         instance_type=processing_instance_type,
         instance_count=1,
-        base_job_name=f"{base_job_prefix}/script-abalone-eval",
+        base_job_name=f"{base_job_prefix}/script-churn-prediction-eval",
         sagemaker_session=pipeline_session,
         role=role,
     )
@@ -260,12 +265,12 @@ def get_pipeline(
         code=os.path.join(BASE_DIR, "evaluate.py"),
     )
     evaluation_report = PropertyFile(
-        name="AbaloneEvaluationReport",
+        name="ChurnPredictionEvaluationReport",
         output_name="evaluation",
         path="evaluation.json",
     )
     step_eval = ProcessingStep(
-        name="EvaluateAbaloneModel",
+        name="EvaluateChurnPredictionModel",
         step_args=step_args,
         property_files=[evaluation_report],
     )
@@ -295,21 +300,21 @@ def get_pipeline(
         model_metrics=model_metrics,
     )
     step_register = ModelStep(
-        name="RegisterAbaloneModel",
+        name="RegisterChurnPredictionModel",
         step_args=step_args,
     )
 
     # condition step for evaluating model quality and branching execution
-    cond_lte = ConditionLessThanOrEqualTo(
+    cond_lte = ConditionGreaterThanOrEqualTo(
         left=JsonGet(
             step_name=step_eval.name,
             property_file=evaluation_report,
-            json_path="regression_metrics.mse.value"
+            json_path="classification_metrics.accuracy.value"
         ),
         right=6.0,
     )
     step_cond = ConditionStep(
-        name="CheckMSEAbaloneEvaluation",
+        name="CheckAccuracyChurnPredictionEvaluation",
         conditions=[cond_lte],
         if_steps=[step_register],
         else_steps=[],

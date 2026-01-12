@@ -3,8 +3,6 @@ import argparse
 import logging
 import os
 import pathlib
-import requests
-import tempfile
 
 import boto3
 import numpy as np
@@ -22,28 +20,80 @@ logger.addHandler(logging.StreamHandler())
 
 # Since we get a headerless CSV file we specify the column names here.
 feature_columns_names = [
-    "sex",
-    "length",
-    "diameter",
-    "height",
-    "whole_weight",
-    "shucked_weight",
-    "viscera_weight",
-    "shell_weight",
+    # Customer Demographics
+    "Age",
+    "Gender",
+    "Country",
+    "City",
+    "Membership_Years",
+
+    # Platform Engagement
+    "Login_Frequency",
+    "Session_Duration_Avg",
+    "Pages_Per_Session",
+    "Cart_Abandonment_Rate",
+    "Wishlist_Items",
+    "Email_Open_Rate",
+    "Mobile_App_Usage",
+    "Social_Media_Engagement_Score",
+
+    # Purchase Behavior
+    "Total_Purchases",
+    "Average_Order_Value",
+    "Days_Since_Last_Purchase",
+    "Discount_Usage_Rate",
+    "Returns_Rate",
+    "Payment_Method_Diversity",
+
+    # Customer Service & Value
+    "Customer_Service_Calls",
+    "Product_Reviews_Written",
+    "Lifetime_Value",
+
+    # Financial / Temporal
+    "Credit_Balance",
+    "Signup_Quarter",
 ]
-label_column = "rings"
+
+label_column = "Churned"
 
 feature_columns_dtype = {
-    "sex": str,
-    "length": np.float64,
-    "diameter": np.float64,
-    "height": np.float64,
-    "whole_weight": np.float64,
-    "shucked_weight": np.float64,
-    "viscera_weight": np.float64,
-    "shell_weight": np.float64,
+    # Customer Demographics
+    "Age": np.float64,
+    "Gender": str,
+    "Country": str,
+    "City": str,
+    "Membership_Years": np.float64,
+
+    # Platform Engagement
+    "Login_Frequency": np.float64,
+    "Session_Duration_Avg": np.float64,
+    "Pages_Per_Session": np.float64,
+    "Cart_Abandonment_Rate": np.float64,
+    "Wishlist_Items": np.float64,
+    "Email_Open_Rate": np.float64,
+    "Mobile_App_Usage": np.float64,
+    "Social_Media_Engagement_Score": np.float64,
+
+    # Purchase Behavior
+    "Total_Purchases": np.float64,
+    "Average_Order_Value": np.float64,
+    "Days_Since_Last_Purchase": np.float64,
+    "Discount_Usage_Rate": np.float64,
+    "Returns_Rate": np.float64,
+    "Payment_Method_Diversity": np.float64,
+
+    # Customer Service & Value
+    "Customer_Service_Calls": np.float64,
+    "Product_Reviews_Written": np.float64,
+    "Lifetime_Value": np.float64,
+
+    # Financial / Temporal
+    "Credit_Balance": np.float64,
+    "Signup_Quarter": str,
 }
-label_column_dtype = {"rings": np.float64}
+
+label_column_dtype = {"Churned": np.float64}
 
 
 def merge_two_dicts(x, y):
@@ -66,27 +116,30 @@ if __name__ == "__main__":
     key = "/".join(input_data.split("/")[3:])
 
     logger.info("Downloading data from bucket: %s, key: %s", bucket, key)
-    fn = f"{base_dir}/data/abalone-dataset.csv"
+    fn = f"{base_dir}/data/ecommerce_customer_churn_dataset.csv"
     s3 = boto3.resource("s3")
     s3.Bucket(bucket).download_file(key, fn)
 
     logger.debug("Reading downloaded data.")
     df = pd.read_csv(
         fn,
-        header=None,
-        names=feature_columns_names + [label_column],
-        dtype=merge_two_dicts(feature_columns_dtype, label_column_dtype),
+        # header=0,
+        # names=feature_columns_names + [label_column],
+        # dtype=merge_two_dicts(feature_columns_dtype, label_column_dtype),
     )
     os.unlink(fn)
 
     logger.debug("Defining transformers.")
-    numeric_features = list(feature_columns_names)
-    numeric_features.remove("sex")
+    categorical_features = ["Gender", "Country", "City", "Signup_Quarter"]
+    numeric_features = [elt for elt in feature_columns_names if elt not in categorical_features]
+
     numeric_transformer = Pipeline(
-        steps=[("imputer", SimpleImputer(strategy="median")), ("scaler", StandardScaler())]
+        steps=[
+            ("imputer", SimpleImputer(strategy="median")),
+            ("scaler", StandardScaler())
+        ]
     )
 
-    categorical_features = ["sex"]
     categorical_transformer = Pipeline(
         steps=[
             ("imputer", SimpleImputer(strategy="constant", fill_value="missing")),
@@ -102,7 +155,7 @@ if __name__ == "__main__":
     )
 
     logger.info("Applying transforms.")
-    y = df.pop("rings")
+    y = df.pop("Churned")
     X_pre = preprocess.fit_transform(df)
     y_pre = y.to_numpy().reshape(len(y), 1)
 

@@ -96,7 +96,7 @@ def main():  # pragma: no cover
         # If the execution is taking a longer time, update these parameters to a larger value.
         # Eg: The total wait time is calculated as 60 * 120 = 7200 seconds (2 hours)
         execution.wait(max_attempts=120, delay=60)
-
+        
         print("\n#####Execution completed. Execution step details:")
 
         print(execution.list_steps())
