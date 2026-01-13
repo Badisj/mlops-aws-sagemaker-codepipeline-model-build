@@ -105,29 +105,35 @@ def merge_two_dicts(x, y):
 
 if __name__ == "__main__":
     logger.debug("Starting preprocessing.")
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--input-data", type=str, required=True)
-    args = parser.parse_args()
+    # parser = argparse.ArgumentParser()
+    # parser.add_argument("--input-data", type=str, required=True)
+    # args = parser.parse_args()
 
     base_dir = "/opt/ml/processing"
-    pathlib.Path(f"{base_dir}/data").mkdir(parents=True, exist_ok=True)
-    input_data = args.input_data
-    bucket = input_data.split("/")[2]
-    key = "/".join(input_data.split("/")[3:])
+    input_dir = os.path.join(base_dir, "input/data")
+    files = list(input_dir.rglob("*.csv"))
+    if len(files) == 0:
+        raise RuntimeError("No input CSV files provided")
+    # pathlib.Path(f"{base_dir}/data").mkdir(parents=True, exist_ok=True)
+    # input_data = args.input_data
+    # bucket = input_data.split("/")[2]
+    # key = "/".join(input_data.split("/")[3:])
 
-    logger.info("Downloading data from bucket: %s, key: %s", bucket, key)
-    fn = f"{base_dir}/data/ecommerce_customer_churn_dataset.csv"
-    s3 = boto3.resource("s3")
-    s3.Bucket(bucket).download_file(key, fn)
+    logger.info("Reading data from dir", input_dir)
+    # fn = f"{base_dir}/data/ecommerce_customer_churn_dataset.csv"
+    # s3 = boto3.resource("s3")
+    # s3.Bucket(bucket).download_file(key, fn)
 
-    logger.debug("Reading downloaded data.")
-    df = pd.read_csv(
-        fn,
-        # header=0,
-        # names=feature_columns_names + [label_column],
-        # dtype=merge_two_dicts(feature_columns_dtype, label_column_dtype),
-    )
-    os.unlink(fn)
+    logger.info("Reading downloaded data.")
+    df = pd.concat(pd.read_csv(f) for f in files)
+    # df = pd.read_csv(
+    #     input_dir,
+    #     header=0,
+    #     names=feature_columns_names + [label_column],
+    #     dtype=merge_two_dicts(feature_columns_dtype, label_column_dtype),
+    # )
+    # os.unlink(fn)
+    logger.info("Completed data read.")
 
     logger.debug("Defining transformers.")
     categorical_features = ["Gender", "Country", "City", "Signup_Quarter"]
