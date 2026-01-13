@@ -135,7 +135,7 @@ def get_pipeline(
     pipeline_name="ChurnPredictionPipeline",
     base_job_prefix="ChurnPrediction",
     processing_instance_type="ml.t3.medium",
-    training_instance_type="ml.t3.medium",
+    training_instance_type="ml.m5.large",
 ):
     """Gets a SageMaker ML Pipeline instance working on churn prediction data.
 

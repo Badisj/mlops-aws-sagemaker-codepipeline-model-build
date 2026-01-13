@@ -135,7 +135,7 @@ def get_pipeline(
     pipeline_name="ChurnPredictionPipeline",
     base_job_prefix="ChurnPrediction",
     processing_instance_type="ml.t3.medium",
-    training_instance_type="ml.t3.medium",
+    training_instance_type="ml.m5.large",
 ):
     """Gets a SageMaker ML Pipeline instance working on churn prediction data.
 
@@ -175,6 +175,12 @@ def get_pipeline(
         role=role,
     )
     step_args = sklearn_processor.run(
+        inputs=[
+            ProcessingInput(
+                source=input_data,
+                destination="/opt/ml/processing/input"
+            ),
+        ],
         outputs=[
             ProcessingOutput(
                 output_name="train", 
@@ -193,7 +199,7 @@ def get_pipeline(
             ),
         ],
         code=os.path.join(BASE_DIR, "preprocess.py"),
-        arguments=["--input-data", input_data],
+        # arguments=["--input-data", input_data],
     )
     step_process = ProcessingStep(
         name="PreprocessChurnPredictionData",
