@@ -2,7 +2,7 @@
 import argparse
 import logging
 import os
-import pathlib
+from pathlib import Path
 
 import boto3
 import numpy as np
@@ -108,10 +108,9 @@ if __name__ == "__main__":
     # parser = argparse.ArgumentParser()
     # parser.add_argument("--input-data", type=str, required=True)
     # args = parser.parse_args()
-
-    base_dir = "/opt/ml/processing"
-    input_dir = os.path.join(base_dir, "input/data")
-    files = list(input_dir.rglob("*.csv"))
+    base_dir = Path("/opt/ml/processing")
+    data_dir = base_dir / "input" / "data"
+    files = list(data_dir.rglob("*.csv"))
     if len(files) == 0:
         raise RuntimeError("No input CSV files provided")
     # pathlib.Path(f"{base_dir}/data").mkdir(parents=True, exist_ok=True)
@@ -119,7 +118,7 @@ if __name__ == "__main__":
     # bucket = input_data.split("/")[2]
     # key = "/".join(input_data.split("/")[3:])
 
-    logger.info("Reading data from dir", input_dir)
+    logger.info("Reading data from dir", data_dir)
     # fn = f"{base_dir}/data/ecommerce_customer_churn_dataset.csv"
     # s3 = boto3.resource("s3")
     # s3.Bucket(bucket).download_file(key, fn)
