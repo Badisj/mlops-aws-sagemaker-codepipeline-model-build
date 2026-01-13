@@ -109,7 +109,7 @@ if __name__ == "__main__":
     # parser.add_argument("--input-data", type=str, required=True)
     # args = parser.parse_args()
     base_dir = Path("/opt/ml/processing")
-    data_dir = base_dir / "input" / "data"
+    data_dir = base_dir / "input"
     files = list(data_dir.rglob("*.csv"))
     if len(files) == 0:
         raise RuntimeError("No input CSV files provided")
