@@ -334,7 +334,7 @@ def get_pipeline(
             property_file=evaluation_report,
             json_path="classification_metrics.accuracy.value"
         ),
-        right=6.0,
+        right=0.80,
     )
     step_cond = ConditionStep(
         name="CheckAccuracyChurnPredictionEvaluation",
