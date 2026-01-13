@@ -129,7 +129,7 @@ def get_pipeline(
     region,
     sagemaker_project_name=None,
     role=None,
-    default_bucket=None,
+    default_bucket="ecommerce-customer-churn",
     model_package_group_name="ChurnPredictionPackageGroup",
     pipeline_name="ChurnPredictionPipeline",
     base_job_prefix="ChurnPrediction",
@@ -161,7 +161,7 @@ def get_pipeline(
     )
     input_data = ParameterString(
         name="InputDataUrl",
-        default_value="s3://sagemaker-project-p-yapqplufpbzj/churn-prediction-mlops-p-yapqplufpbzj/data/ecommerce_customer_churn_dataset.csv"
+        default_value=f"s3://{default_bucket}/data/raw/ecommerce_customer_churn_dataset.csv"
     )
 
     # processing step for feature engineering
@@ -175,9 +175,21 @@ def get_pipeline(
     )
     step_args = sklearn_processor.run(
         outputs=[
-            ProcessingOutput(output_name="train", source="/opt/ml/processing/train"),
-            ProcessingOutput(output_name="validation", source="/opt/ml/processing/validation"),
-            ProcessingOutput(output_name="test", source="/opt/ml/processing/test"),
+            ProcessingOutput(
+                output_name="train", 
+                source="/opt/ml/processing/train",
+                destination=f"s3://{default_bucket}/{base_job_prefix}/processed/train"
+            ),
+            ProcessingOutput(
+                output_name="validation", 
+                source="/opt/ml/processing/validation",
+                destination=f"s3://{default_bucket}/{base_job_prefix}/processed/validation"
+            ),
+            ProcessingOutput(
+                output_name="test", 
+                source="/opt/ml/processing/test",
+                destination=f"s3://{default_bucket}/{base_job_prefix}/processed/test"
+            ),
         ],
         code=os.path.join(BASE_DIR, "preprocess.py"),
         arguments=["--input-data", input_data],
@@ -188,7 +200,7 @@ def get_pipeline(
     )
 
     # training step for generating model artifacts
-    model_path = f"s3://{sagemaker_session.default_bucket()}/{base_job_prefix}/ChurnPredictionTrain"
+    model_path = f"s3://{default_bucket}/{base_job_prefix}/models"
     image_uri = sagemaker.image_uris.retrieve(
         framework="xgboost",
         region=region,
@@ -260,7 +272,11 @@ def get_pipeline(
             ),
         ],
         outputs=[
-            ProcessingOutput(output_name="evaluation", source="/opt/ml/processing/evaluation"),
+            ProcessingOutput(
+                output_name="evaluation", 
+                source="/opt/ml/processing/evaluation",
+                destination=f"s3://{default_bucket}/{base_job_prefix}/evaluation"
+            ),
         ],
         code=os.path.join(BASE_DIR, "evaluate.py"),
     )
