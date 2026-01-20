@@ -226,8 +226,8 @@ def get_pipeline(
     )
     xgb_train.set_hyperparameters(
         objective="binary:hinge",
-        num_round=50,
-        max_depth=5,
+        num_round=100,
+        max_depth=7,
         eta=0.2,
         gamma=4,
         min_child_weight=6,
